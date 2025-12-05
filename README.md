@@ -1,3 +1,4 @@
+[![DOI](https://zenodo.org/badge/1109997346.svg)](https://doi.org/10.5281/zenodo.17831030)
 # WGCNA Analysis Pipeline (v1.1.0)
 
 ## 1. System Requirements
