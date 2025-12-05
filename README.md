@@ -1,4 +1,4 @@
-# WGCNA Analysis Pipeline (v1.2.0)
+# WGCNA Analysis Pipeline (v1.1.0)
 
 ## 1. System Requirements
 * **OS:** Windows 10 (Tested). Compatible with Linux/macOS with path adjustments.
