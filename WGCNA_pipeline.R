@@ -1,7 +1,7 @@
 # ============================================
 # WGCNA 全流程分析脚本 (适配 R 4.5.2 + 清华镜像)
 # 作者：李嘉庆
-# 日期：2025年12月4日
+# 日期：2025年12月5日(v1.2.0)
 # ============================================
 
 cat("
@@ -489,8 +489,8 @@ cat("03_Network/      # 网络对象与TOM矩阵\n")
 cat("04_Modules/      # 模块可视化\n")
 cat("05_Results/      # 所有结果表格与总结\n")
 
-# ---------- 第八部分：导出Cytoscape网络文件 （内存优化版）----------
-cat("\n[7.4] 正在为 Cytoscape 导出网络文件（内存优化模式）...\n")
+# ---------- 第八部分：导出Cytoscape网络文件 （修正与优化版）----------
+cat("\n[7.4] 正在为 Cytoscape 导出网络文件（内存优化 + kME筛选模式）...\n")
 
 # 创建 Cytoscape 输出目录
 cytoscape_dir <- "05_Results/Cytoscape_Networks"
@@ -515,12 +515,21 @@ cat("   当前可用内存（估计）:", round(get_memory_usage(), 2), "GB\n")
 networkType <- "unsigned"
 cat("   网络类型:", networkType, "\n")
 
+# v1.2.0 修正：使用 module_colors (与第五部分定义一致)
+if (!exists("module_colors")) {
+  stop("错误：找不到 module_colors 对象。请确保已运行第五部分（网络构建）。")
+}
+
 # 获取模块信息（跳过灰色模块）
-modules <- unique(moduleColors)
+modules <- unique(module_colors)
 modules <- modules[modules != "grey"]
 
 cat("   将处理", length(modules), "个模块的 Cytoscape 导出...\n")
-cat("   [内存保护] 每个模块独立计算TOM，避免一次性占用过高内存\n")
+cat("   [内存保护] 每个模块独立计算TOM\n")
+cat("   [核心筛选] 对于大模块，优先导出 kME 最高的 Hub 基因\n")
+
+# 定义每个模块导出网络的最大基因数
+max_genes_per_module <- 300 
 
 # 逐模块处理
 successful_exports <- 0
@@ -528,53 +537,77 @@ for (i in seq_along(modules)) {
   mod <- modules[i]
   cat(sprintf("   [%d/%d] 处理模块: %s", i, length(modules), mod))
   
-  # 获取该模块的基因
-  modGenes <- colnames(datExpr_forWGCNA)[moduleColors == mod]
+  # 修正：使用 module_colors 获取基因
+  modGenes <- colnames(datExpr_forWGCNA)[module_colors == mod]
   n_genes <- length(modGenes)
   cat(sprintf(" (%d 个基因)\n", n_genes))
   
-  # 跳过基因数过少的模块（Cytoscape可视化效果差）
+  # 跳过基因数过少的模块
   if (n_genes < 10) {
-    cat("      → 跳过（基因数<10，不适合网络可视化）\n")
+    cat("       → 跳过（基因数<10，不适合网络可视化）\n")
     next
   }
   
-  # 对于大型模块，限制基因数量以控制计算时间
-  max_genes_per_module <- 300  # 可调整此参数
+  # --- 核心优化：基于 kME 筛选 Top 基因 ---
   if (n_genes > max_genes_per_module) {
-    cat(sprintf("      → 模块较大，随机选择%d个基因以加速计算\n", max_genes_per_module))
-    set.seed(123)  # 确保可重复性
-    modGenes <- sample(modGenes, max_genes_per_module)
-    n_genes <- length(modGenes)
+    cat(sprintf("       → 模块较大，基于 kME (Hub基因) 筛选前 %d 个关键基因...\n", max_genes_per_module))
+    
+    # 1. 匹配当前模块的特征向量名
+    ME_name <- paste0("ME", mod)
+    
+    # 2. 检查 MEs 对象是否存在
+    if (exists("MEs") && ME_name %in% colnames(MEs)) {
+      # 3. 提取特征向量
+      curr_ME <- MEs[, ME_name]
+      # 4. 提取表达矩阵
+      curr_datExpr <- datExpr_forWGCNA[, modGenes]
+      # 5. 计算 kME (绝对值)
+      gene_kME <- abs(cor(curr_datExpr, curr_ME, use = "p"))
+      # 6. 排序
+      kME_ranking <- data.frame(GeneID = rownames(gene_kME), kME_Value = as.vector(gene_kME))
+      kME_ranking <- kME_ranking[order(-kME_ranking$kME_Value), ]
+      # 7. 截取
+      modGenes <- kME_ranking$GeneID[1:max_genes_per_module]
+      n_genes <- length(modGenes)
+      
+      cat(sprintf("       √ 已筛选 kME 最高的 %d 个基因 (kME范围: %.2f - %.2f)\n", 
+                  n_genes, max(kME_ranking$kME_Value[1:max_genes_per_module]), 
+                  min(kME_ranking$kME_Value[1:max_genes_per_module])))
+    } else {
+      cat("       ⚠️ 警告: 未找到模块特征向量，回退到随机抽样\n")
+      set.seed(123)
+      modGenes <- sample(modGenes, max_genes_per_module)
+      n_genes <- length(modGenes)
+    }
   }
+  # ---------------------------------------
   
   tryCatch({
     # 提取该模块的表达数据子集
     modExpr <- datExpr_forWGCNA[, modGenes, drop = FALSE]
     
-    # 计算该模块的TOM（仅限模块内基因）
-    cat("      - 计算模块内TOM相似性...")
+    # 计算该模块的TOM
+    cat("       - 计算模块内TOM相似性...")
     TOM_mod <- TOMsimilarityFromExpr(
       modExpr,
       power = softPower,
       networkType = networkType,
       verbose = 0,
-      corType = "pearson",  # 使用Pearson相关以节省内存
-      maxPOutliers = 0.05   # 限制离群值处理
+      corType = "pearson", 
+      maxPOutliers = 0.05
     )
     cat("完成\n")
     
-    # 设置连接阈值（可根据需要调整）
-    # 注：阈值0.1意味着只保留TOM值前10%的连接
-    threshold <- quantile(TOM_mod[lower.tri(TOM_mod)], probs = 0.9)
-    cat(sprintf("      - 连接阈值: %.3f (保留前10%%的强连接)\n", threshold))
+    # 设置连接阈值 (保留前10%强连接)
+    threshold <- quantile(TOM_mod[lower.tri(TOM_mod)], probs = 0.90)
+    cat(sprintf("       - 连接阈值: %.3f (Top 10%%)\n", threshold))
     
     # 生成输出文件名
     edge_file <- file.path(cytoscape_dir, sprintf("Cytoscape_%s_edges.txt", mod))
     node_file <- file.path(cytoscape_dir, sprintf("Cytoscape_%s_nodes.txt", mod))
     
     # 导出为Cytoscape格式
-    cat("      - 导出为Cytoscape格式...")
+    cat("       - 导出文件...")
     exportNetworkToCytoscape(
       TOM_mod,
       edgeFile = edge_file,
@@ -587,42 +620,34 @@ for (i in seq_along(modules)) {
     )
     cat("完成\n")
     
-    # 记录成功
     successful_exports <- successful_exports + 1
     
-    # 清理临时对象以释放内存
+    # 内存清理
     rm(TOM_mod, modExpr)
-    gc(full = TRUE)  # 强制垃圾回收
+    gc(full = TRUE, verbose = FALSE)
     
   }, error = function(e) {
-    cat(sprintf("      → 模块 %s 导出失败: %s\n", mod, e$message))
+    cat(sprintf("       → 模块 %s 导出失败: %s\n", mod, e$message))
   })
 }
 
 cat("\n   → Cytoscape 导出总结:\n")
-cat(sprintf("      成功导出 %d/%d 个模块的网络文件\n", successful_exports, length(modules)))
-cat(sprintf("      输出目录: %s/\n", cytoscape_dir))
-cat("      文件命名格式: Cytoscape_[模块颜色]_edges/nodes.txt\n")
-cat("      可直接在Cytoscape中通过\"File → Import → Network from File\"导入\n")
+cat(sprintf("       成功导出 %d/%d 个模块\n", successful_exports, length(modules)))
+cat(sprintf("       输出目录: %s/\n", cytoscape_dir))
 
-# 添加分隔线（修复版）
+# 添加分隔线
 cat(paste0("\n", strrep("=", 60), "\n"))
 cat("CYTOSCAPE 导出完成！\n")
 cat(strrep("=", 60), "\n")
 
-# 显示实际生成的文件列表
-cat("\n已生成的文件列表:\n")
+# 显示文件列表
 if (dir.exists(cytoscape_dir)) {
   files <- list.files(cytoscape_dir, pattern = "\\.txt$", full.names = TRUE)
   if (length(files) > 0) {
-    for (f in files) {
+    cat(sprintf("\n共生成 %d 个文件 (显示前5个):\n", length(files)))
+    for (f in head(files, 5)) {
       size_kb <- round(file.info(f)$size / 1024, 1)
       cat(sprintf("  %s (%.1f KB)\n", basename(f), size_kb))
     }
-    cat(sprintf("\n共生成 %d 个文件\n", length(files)))
-  } else {
-    cat("  未找到任何文件\n")
   }
-} else {
-  cat("  输出目录不存在\n")
 }
