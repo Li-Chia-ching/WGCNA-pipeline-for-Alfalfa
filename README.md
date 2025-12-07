@@ -1,114 +1,130 @@
-[![DOI](https://zenodo.org/badge/1109997346.svg)](https://doi.org/10.5281/zenodo.17831030)
-# WGCNA Analysis Pipeline 
+# WGCNA Analysis Pipeline for *Medicago sativa*
 
-**Current Versions:**
+**Current Version:** Advanced Analysis v2.7.1 | Basic Script v1.1.0  
+**Author:** Jiaqing Li  
+**Date:** December 2025
 
-  * **Step 1: Preliminary Analysis:** v1.1.0
-  * **Step 2: Advanced Analysis:** v2.4
+## Overview
 
-## 1\. System Requirements
+This repository contains a robust, publication-ready R pipeline for **Weighted Gene Co-expression Network Analysis (WGCNA)**. It is specifically optimized for:
 
-  * **OS:** Windows 10/11 (Tested). Compatible with Linux/macOS with minor path adjustments.
-  * **R Version:** R 4.5.2 or higher is highly recommended.
+1.  **System Constraints:** Optimized for 16GB RAM environments using memory-aware data handling.
+2.  **Target Species:** tailored for *Medicago sativa* (Alfalfa), addressing the lack of specific annotation packages by implementing strict external validation workflows.
+3.  **Scientific Integrity:** Enforces strict data handling standards, ensuring all visualizations are derived from real experimental data.
+
+-----
+
+## 🚀 Key Features
+
+  * **Automated Environment Setup:** Auto-detection and retry logic for installing CRAN and Bioconductor packages (configured for Tsinghua mirrors).
+  * **Strict Quality Control:**
+      * Filters genes with \>50% zero expression.
+      * Removes the bottom 25% of genes with low variance to reduce noise.
+  * **Robust Network Construction:** Uses `blockwiseModules` with multi-threading (6 threads) to handle large datasets efficiently.
+  * **Hub Gene Identification:** Implements **kME ranking** (Module Eigengene Connectivity) to identify the top 10% most connected genes, ensuring robust Cytoscape network generation.
+  * **Publication-Quality Visualizations:** Generates dendrograms, heatmaps, and topology plots using `ggplot2` and `pheatmap`.
+
+-----
+
+## 🛠 System Requirements
+
+  * **OS:** Windows 10/11 (Tested). Compatible with Linux/macOS with path adjustments.
+  * **R Version:** R 4.5.2 or higher.
   * **Hardware:**
-      * **CPU:** Multi-core processor recommended (Scripts are optimized for 4-6 threads).
-      * **RAM:** **16GB+ is strongly recommended.**
-          * *Note:* The v2.4 Advanced script includes active memory management (garbage collection) to ensure stability on 16GB systems, but WGCNA network construction remains memory-intensive.
+      * **CPU:** Multi-core processor (Pipeline uses 6 threads).
+      * **RAM:** 16GB minimum recommended.
 
-## 2\. R Dependencies
+-----
 
-The pipeline is divided into two stages. Ensure all packages below are installed to run the full workflow.
+## 📦 Installation
 
-### Core Analysis & Statistics (Step 1)
-
-  * **`WGCNA`**: Main package for weighted correlation network analysis.
-  * **`impute`** (Bioconductor): Required by WGCNA for handling missing data.
-  * **`preprocessCore`** (Bioconductor): Required for WGCNA normalization functions.
-  * **`fastcluster`**: Accelerates hierarchical clustering operations.
-  * **`dynamicTreeCut`**: Adaptive branch pruning for module detection.
-
-### Data Manipulation (Step 1 & 2)
-
-  * **`dplyr`** / **`tidyverse`**: Advanced data frame manipulation.
-  * **`stringr`**: String cleaning and RegEx operations.
-  * **`reshape2`**: Data transformation (melting/casting).
-  * **`data.table`**: High-performance file reading (Crucial for v2.4 speed).
-
-### Advanced Visualization (Step 2 - New)
-
-  * **`ggplot2`**: Base system for publication-quality static plotting.
-  * **`pheatmap`**: Professional heatmaps with dynamic clustering.
-  * **`igraph`**: Network topology analysis and visualization.
-  * **`patchwork`**: Arranging multiple `ggplot` figures into composite figures.
-  * **`ggrepel`**: Smart label placement to prevent text overlapping.
-  * **`RColorBrewer`** / **`viridis`**: Scientific color palettes.
-
-### Functional Enrichment (Step 2 - New)
-
-  * **`clusterProfiler`**: Comprehensive enrichment analysis (KEGG/GO).
-  * **`enrichplot`**: Visualization of enrichment results (Dot plots, etc.).
-  * **`org.Hs.eg.db`**: Genome-wide annotation for Human (Replace with `org.Mm.eg.db` for Mouse, etc.).
-  * **`GOSemSim`**: Semantic similarity measurement (Dependency for clusterProfiler).
-
-## 3\. Installation Guide
-
-To ensure both Script A (Preliminary) and Script B (Advanced) run smoothly, copy and paste the following code into your R console. This includes the "Smart Repair" logic to handle difficult Bioconductor packages.
+Copy and paste the following code into your R console to initialize the environment and install all dependencies:
 
 ```r
-# ==============================================================================
-# Unified Dependency Installer
-# ==============================================================================
+# 1. Set Mirrors
+options(repos = c(CRAN = "https://mirrors.tuna.tsinghua.edu.cn/CRAN/"))
+options(BioC_mirror = "https://mirrors.tuna.tsinghua.edu.cn/bioc/")
 
-# 1. Install CRAN packages
-cran_pkgs <- c("WGCNA", "dplyr", "ggplot2", "reshape2", "stringr", 
-               "RColorBrewer", "viridis", "BiocManager", "fastcluster", 
-               "dynamicTreeCut", "pheatmap", "igraph", "patchwork", 
-               "ggrepel", "data.table")
+# 2. Install Core Packages
+install.packages(c("WGCNA", "dplyr", "ggplot2", "reshape2", 
+                   "stringr", "RColorBrewer", "BiocManager", 
+                   "pheatmap", "igraph", "patchwork"))
 
-for (pkg in cran_pkgs) {
-  if (!requireNamespace(pkg, quietly = TRUE)) install.packages(pkg)
-}
-
-# 2. Install Bioconductor packages
-# Note: This step checks for dependencies that often cause installation failures
-if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
-
-# Install core annotation and enrichment packages
-# CHANGE "org.Hs.eg.db" if you are not analyzing Human data
-bioc_pkgs <- c("GO.db", "impute", "preprocessCore", "clusterProfiler", 
-               "enrichplot", "GOSemSim", "AnnotationDbi", "org.Hs.eg.db")
-
-BiocManager::install(bioc_pkgs, update = FALSE, ask = FALSE)
-
-cat("Installation complete. Please restart your R session before running the pipeline.\n")
+# 3. Install Bioconductor Dependencies
+BiocManager::install(c("GO.db", "impute", "preprocessCore", "clusterProfiler"))
 ```
 
-## 4\. Pipeline Workflow
+-----
 
-### Part 1: Preliminary Analysis (Script v1.1.0)
+## 📂 Output Directory Structure
 
-**Focus:** Data Cleaning & Network Construction.
+The pipeline automatically creates the following directory structure:
 
-  * **Inputs:** Raw FPKM/Counts CSV file.
-  * **Key Operations:**
-      * Data cleaning (filtering low expression/low variance genes).
-      * Outlier detection.
-      * Soft-threshold selection ($\beta$).
-      * Module detection via `blockwiseModules`.
-  * **Outputs:** `03_Network/WGCNA_Network_Object.RData` (Critical input for Part 2).
+```text
+Project_Root/
+├── 01_InputData/          # Preprocessed expression matrices & QC stats
+├── 02_QC/                 # Sample clustering & Soft-thresholding plots
+├── 03_Network/            # RData objects (net, MEs) and TOM matrices
+├── 04_Modules/            # Module-trait relationships & Eigengene heatmaps
+├── 05_Results/            # Basic Results
+│   ├── Cytoscape_Networks/ # Edges/Nodes files for Cytoscape (Top 10% kME)
+│   ├── Gene_Module_Assignments_Full.csv
+│   └── Module_Eigengenes_Expression.csv
+└── 06_Advanced_Results/   # (Generated by v2.7.1 script)
+    ├── Figures/           # High-res PDFs (Heatmaps, Networks, Topologies)
+    ├── Enrichment/        # Gene lists for AgriGO/EggNOG & Analysis Guides
+    ├── Tables/            # Correlation matrices
+    └── Network_Data/      # Hub gene lists
+```
 
-### Part 2: Advanced Analysis (Script v2.4)
+-----
 
-**Focus:** Mining, Visualization, and Biological Interpretation.
+## 📝 Change Log & Version History
 
-  * **Inputs:** The `.RData` file and Preprocessed Matrix from Part 1.
-  * **Key Features:**
-      * **Robustness:** Auto-detects data inconsistencies and fixes vector/dataframe errors.
-      * **Hub Gene Mining:** Calculates Module Membership (kME) to identify top 20 driver genes per module.
-      * **Visualization:** Generates publication-ready PDFs (300 DPI) for:
-          * Hierarchical Clustering Dendrograms.
-          * Network Topology Validation.
-          * Hub Gene Interaction Networks (`igraph`).
-          * Module-Module Correlation Heatmaps (`pheatmap` with dynamic breaks).
-      * **Enrichment:** Automated KEGG and GO enrichment for top modules.
-  * **Memory Optimization:** Uses aggressive garbage collection (`gc()`) to run safely on 16GB RAM machines.
+### v2.7.1 - The Robustness Patch (Current)
+
+*Release Date: Dec 2025*
+
+**Summary:** A non-critical patch improving the robustness of the **Module Correlation Heatmap** generation.
+
+  * **Issue Resolved:** Addressed edge cases where specific data normalization resulted in identical variance across Module Eigengenes (MEs), causing `min/max of all NA` warnings in the `cor` function.
+  * **Impact:**
+      * **User Experience:** Eliminates confusing console warnings.
+      * **Scientific Validity:** Zero impact on biological conclusions. Module detection, hub gene identification, and enrichment preparations remain identical to v2.7.
+  * **Action:** If you are running v2.7 successfully, no update is needed. This patch is for users experiencing console warnings during heatmap generation.
+
+### v2.7 - The Integrity & Optimization Update
+
+  * **Refactor: Academic Integrity:**
+      * **Removed Synthetic Data:** Completely removed code that generated random/placeholder functional category pie charts.
+      * **New Workflow:** Added `Enrichment_Analysis_Guide.txt` and `Visualization_Template.R` to guide users in performing *real* external enrichment analysis (using AgriGO, EggNOG-mapper).
+  * **Refactor: Network Robustness:**
+      * **Dynamic Thresholding:** Replaced fixed edge thresholds (0.6) with dynamic quantile thresholding (Top 10% / 90th percentile). This ensures Cytoscape networks are always generated, regardless of overall module correlation strength.
+  * **Optimization:** Enhanced memory monitoring for 16GB RAM systems.
+
+### v1.1.0 - Basic Pipeline
+
+  * Initial release of the standard WGCNA workflow.
+  * Includes robust data cleaning (50% zeros / 25% variance filtering).
+  * Includes basic Cytoscape export functionality.
+
+-----
+
+## 🔬 Scientific Integrity Statement
+
+**Strict Data Policy:**
+This pipeline is designed to adhere to the highest standards of scientific data integrity.
+
+1.  **No Synthetic Data:** All visualizations (heatmaps, dendrograms, networks) are generated directly from your provided expression data.
+2.  **Enrichment Analysis:** Due to the lack of a standardized `OrgDb` for *Medicago sativa*, this pipeline **does not** perform internal "guesswork" enrichment. Instead, it exports precise gene lists and provides a guide for using established external tools (AgriGO v2, EggNOG-mapper) to ensuring valid biological interpretation.
+
+-----
+
+## 📖 Usage Guide
+
+1.  **Prepare Data:** Ensure your input file is a standard CSV/TXT expression matrix.
+2.  **Run Basic Script (v1.1.0):** Executes data cleaning, network construction, and module identification.
+      * *Output:* `03_Network/WGCNA_Network_Object.RData`.
+3.  **Run Advanced Script (v2.7.1):** Loads the network object to perform visualization, hub gene mining, and generate enrichment lists.
+      * *Output:* Publication-ready figures in `06_Advanced_Results/`.
+4.  **External Validation:** Use the files in `06_Advanced_Results/Enrichment/` to perform GO/KEGG analysis using the `mtr` (Medicago truncatula) database as a reference.
