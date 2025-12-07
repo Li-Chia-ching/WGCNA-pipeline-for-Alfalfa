@@ -122,8 +122,8 @@ load_and_validate_data <- function() {
     # 备选方案：使用base R，但限制行数以节省内存
     cat("  Note: Consider installing 'data.table' for faster file loading\n")
     datExpr <- read.csv("01_InputData/Preprocessed_Expression_Matrix.csv", 
-                       row.names = 1, 
-                       nrows = 50000)  # 限制读取行数
+                        row.names = 1, 
+                        nrows = 50000)  # 限制读取行数
     datExpr <- as.data.frame(t(datExpr))
   }
   
@@ -290,13 +290,13 @@ generate_topology_plots <- function() {
     ggplot2::geom_point(size = 2.5, color = "#E41A1C", alpha = 0.8) + 
     ggplot2::geom_line(color = "#E41A1C", linewidth = 0.8) +
     ggplot2::geom_hline(yintercept = 0.85, linetype = "dashed", 
-                       color = "gray40", linewidth = 0.6) +
+                        color = "gray40", linewidth = 0.6) +
     ggplot2::geom_vline(xintercept = softPower, linetype = "dashed", 
-                       color = "#377EB8", linewidth = 0.6) +
+                        color = "#377EB8", linewidth = 0.6) +
     ggplot2::annotate("text", x = softPower, y = max(sft_df$R2), 
-                     label = paste("Selected:", softPower), 
-                     vjust = -0.5, hjust = 1.2, 
-                     color = "#377EB8", fontface = "bold", size = 3) +
+                      label = paste("Selected:", softPower), 
+                      vjust = -0.5, hjust = 1.2, 
+                      color = "#377EB8", fontface = "bold", size = 3) +
     ggplot2::labs(
       title = "Scale-free Topology Model Fit",
       x = "Soft Threshold (Power)",
@@ -313,7 +313,7 @@ generate_topology_plots <- function() {
     ggplot2::geom_point(size = 2.5, color = "#377EB8", alpha = 0.8) + 
     ggplot2::geom_line(color = "#377EB8", linewidth = 0.8) +
     ggplot2::geom_vline(xintercept = softPower, linetype = "dashed", 
-                       color = "#377EB8", linewidth = 0.6) +
+                        color = "#377EB8", linewidth = 0.6) +
     ggplot2::labs(
       title = "Mean Gene Connectivity",
       x = "Soft Threshold (Power)", 
@@ -405,18 +405,18 @@ perform_enrichment_analysis <- function() {
         
         # 创建热图 - 这是真实数据，不是随机生成的
         pheatmap::pheatmap(expr_scaled,
-                 main = paste("Expression Pattern - Module", mod),
-                 cluster_rows = TRUE,
-                 cluster_cols = TRUE,
-                 show_colnames = ncol(expr_scaled) <= 20,
-                 show_rownames = FALSE,  # 基因太多不显示名称
-                 color = color_palette,
-                 fontsize_row = 6,
-                 fontsize_col = 7,
-                 border_color = NA,
-                 filename = paste0("06_Advanced_Results/Enrichment/Figures/Expression_Pattern_", mod, ".pdf"),
-                 width = 10,
-                 height = 8)
+                           main = paste("Expression Pattern - Module", mod),
+                           cluster_rows = TRUE,
+                           cluster_cols = TRUE,
+                           show_colnames = ncol(expr_scaled) <= 20,
+                           show_rownames = FALSE,  # 基因太多不显示名称
+                           color = color_palette,
+                           fontsize_row = 6,
+                           fontsize_col = 7,
+                           border_color = NA,
+                           filename = paste0("06_Advanced_Results/Enrichment/Figures/Expression_Pattern_", mod, ".pdf"),
+                           width = 10,
+                           height = 8)
         
         cat(paste("      Expression pattern heatmap created for module", mod, "\n"))
         
@@ -650,6 +650,12 @@ analyze_hub_genes <- function(target_module, datExpr, MEs, n_top = 20) {
     # 1. 创建核心基因表达热图
     if (length(top_gene_names) >= 3) {
       cat("      Creating expression heatmap...\n")
+      
+      # --- 检查方差齐性，并给出友好提示 ---
+      if (length(unique(apply(MEs_clean, 2, var))) == 1) {
+        cat("  ℹ️ 提示: 所有模块特征基因方差相同，这通常源于数据标准化步骤，不影响生物学解释。\n")
+      }
+      
       tryCatch({
         expr_subset <- datExpr[, top_gene_names, drop = FALSE]
         
@@ -661,29 +667,29 @@ analyze_hub_genes <- function(target_module, datExpr, MEs, n_top = 20) {
         
         # 创建热图
         pheatmap::pheatmap(expr_scaled,
-                 main = paste("Hub Gene Expression - Module", target_module),
-                 cluster_rows = TRUE,
-                 cluster_cols = TRUE,
-                 show_colnames = ncol(expr_scaled) <= 25,  # 样本太多时不显示列名
-                 show_rownames = TRUE,
-                 color = color_palette,
-                 fontsize_row = 7,
-                 fontsize_col = 6,
-                 border_color = NA,
-                 filename = paste0("06_Advanced_Results/Figures/3_Heatmap_Hub_", target_module, ".pdf"),
-                 width = 9,
-                 height = 8)
+                           main = paste("Hub Gene Expression - Module", target_module),
+                           cluster_rows = TRUE,
+                           cluster_cols = TRUE,
+                           show_colnames = ncol(expr_scaled) <= 25,  # 样本太多时不显示列名
+                           show_rownames = TRUE,
+                           color = color_palette,
+                           fontsize_row = 7,
+                           fontsize_col = 6,
+                           border_color = NA,
+                           filename = paste0("06_Advanced_Results/Figures/3_Heatmap_Hub_", target_module, ".pdf"),
+                           width = 9,
+                           height = 8)
         
         # 保存PNG版本
         grDevices::png(paste0("06_Advanced_Results/Figures/3_Heatmap_Hub_", target_module, ".png"),
-            width = 900, height = 800, res = 150)
+                       width = 900, height = 800, res = 150)
         
         pheatmap::pheatmap(expr_scaled,
-                 main = paste("Hub Gene Expression - Module", target_module),
-                 cluster_rows = TRUE,
-                 cluster_cols = TRUE,
-                 show_colnames = ncol(expr_scaled) <= 25,
-                 color = color_palette)
+                           main = paste("Hub Gene Expression - Module", target_module),
+                           cluster_rows = TRUE,
+                           cluster_cols = TRUE,
+                           show_colnames = ncol(expr_scaled) <= 25,
+                           color = color_palette)
         
         grDevices::dev.off()
         
@@ -700,7 +706,7 @@ analyze_hub_genes <- function(target_module, datExpr, MEs, n_top = 20) {
       tryCatch({
         # 计算邻接矩阵（基于相关性）
         adj_matrix <- abs(cor(datExpr[, top_gene_names, drop = FALSE], 
-                             use = "pairwise.complete.obs"))
+                              use = "pairwise.complete.obs"))
         
         # 使用动态阈值而非固定阈值0.6
         # 保留最强的连接（前10%）
@@ -743,7 +749,7 @@ analyze_hub_genes <- function(target_module, datExpr, MEs, n_top = 20) {
           
           # 创建PDF
           grDevices::pdf(paste0("06_Advanced_Results/Figures/3_Network_Hub_", target_module, ".pdf"),
-              width = 9, height = 9)
+                         width = 9, height = 9)
           
           # 计算节点属性
           node_degree <- igraph::degree(g)
@@ -752,23 +758,23 @@ analyze_hub_genes <- function(target_module, datExpr, MEs, n_top = 20) {
           
           # 创建增强版图形
           igraph::plot.igraph(g,
-               layout = layout,
-               vertex.size = 12 + 1.5 * node_degree,  # 大小与连接度成正比
-               vertex.color = node_colors[degree_scaled],
-               vertex.label.cex = 0.7,
-               vertex.label.color = "black",
-               vertex.label.dist = 0.8,
-               vertex.frame.color = "white",
-               edge.width = igraph::E(g)$weight * 3,
-               edge.color = "gray60",
-               main = paste("Hub Gene Interaction Network - Module", target_module))
+                              layout = layout,
+                              vertex.size = 12 + 1.5 * node_degree,  # 大小与连接度成正比
+                              vertex.color = node_colors[degree_scaled],
+                              vertex.label.cex = 0.7,
+                              vertex.label.color = "black",
+                              vertex.label.dist = 0.8,
+                              vertex.frame.color = "white",
+                              edge.width = igraph::E(g)$weight * 3,
+                              edge.color = "gray60",
+                              main = paste("Hub Gene Interaction Network - Module", target_module))
           
           # 添加图例
           graphics::legend("topleft",
-                 legend = c("High connectivity", "Low connectivity"),
-                 fill = c("darkblue", "lightblue"),
-                 bty = "n",
-                 cex = 0.7)
+                           legend = c("High connectivity", "Low connectivity"),
+                           fill = c("darkblue", "lightblue"),
+                           bty = "n",
+                           cex = 0.7)
           
           grDevices::dev.off()
           
@@ -857,37 +863,52 @@ generate_module_correlation_heatmap <- function() {
   cat("  Calculating module-module correlations...\n")
   module_cor <- cor(MEs_clean, use = "pairwise.complete.obs")
   
+  # ====== 修复：增强检查 ======
   # 检查相关性矩阵是否有有效值
   if (all(is.na(module_cor))) {
-    cat("  Error: Correlation matrix contains only NA values\n")
+    cat("  ⚠️ 警告: 相关性矩阵全为NA值，跳过热图生成\n")
+    cat("    可能原因:\n")
+    cat("    1. 模块特征基因全为相同值（零方差）\n")
+    cat("    2. 样本数太少（<2）\n")
+    cat("    3. 数据格式异常\n")
     return(NULL)
   }
   
-  # 创建模块注释
-  module_names <- gsub("^ME", "", colnames(MEs_clean))
-  module_sizes <- sapply(module_names, function(m) {
-    sum(module_colors == m)
-  })
-  
-  annotation_row <- data.frame(
-    ModuleSize = module_sizes,
-    row.names = module_names
-  )
-  
-  # 生成颜色调色板
-  color_palette <- grDevices::colorRampPalette(rev(RColorBrewer::brewer.pal(11, "RdBu")))(100)
-  
-  # 创建发表级热图 - 修复breaks计算错误
-  cat("  Creating publication-quality heatmap...\n")
-  
-  # 确定合适的breaks范围
+  # 提取所有非NA的相关性值
   cor_values <- as.vector(module_cor)
   cor_values <- cor_values[!is.na(cor_values)]
   
+  # 检查是否有有效值
   if (length(cor_values) == 0) {
-    cat("  Error: No valid correlation values\n")
+    cat("  ⚠️ 警告: 无有效相关性值，跳过热图生成\n")
     return(NULL)
   }
+  
+  # 检查是否所有值都相同（会导致热图颜色映射失败）
+  if (var(cor_values) == 0) {
+    cat("  ℹ️ 提示: 所有模块相关性值相同，创建简化热图\n")
+    
+    # 创建简化的热图（无颜色梯度）
+    cor_df <- as.data.frame(module_cor)
+    cor_df$Module <- rownames(cor_df)
+    
+    p <- ggplot2::ggplot(cor_df, ggplot2::aes(x = 1, y = Module)) +
+      ggplot2::geom_tile(fill = "gray80") +
+      ggplot2::geom_text(ggplot2::aes(label = round(module_cor[,1], 3)), 
+                         size = 3) +
+      ggplot2::labs(title = "模块相关性（所有值相同）",
+                    x = "", y = "模块") +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(axis.text.x = ggplot2::element_blank())
+    
+    ggplot2::ggsave("06_Advanced_Results/Figures/4_Module_Module_Correlation.pdf",
+                    p, width = 8, height = 10)
+    
+    cat("  → 已保存简化版模块相关性图\n")
+    return(NULL)
+  }
+  
+  # ====== 原始代码继续（但有保护） ======
   
   # 确保范围在-1到1之间
   cor_min <- max(-1, min(cor_values, na.rm = TRUE))
@@ -904,43 +925,43 @@ generate_module_correlation_heatmap <- function() {
   
   tryCatch({
     pheatmap::pheatmap(module_cor,
-             main = "Module-Module Eigengene Correlation",
-             subtitle = "Similarity between co-expression modules (non-trait analysis)",
-             color = color_palette,
-             breaks = breaks_seq,
-             display_numbers = TRUE,
-             number_format = "%.2f",
-             number_color = ifelse(abs(module_cor) > 0.7, "white", "black"),
-             fontsize_number = 6,
-             cluster_rows = TRUE,
-             cluster_cols = TRUE,
-             show_rownames = TRUE,
-             show_colnames = TRUE,
-             annotation_row = annotation_row,
-             annotation_col = annotation_row,
-             annotation_colors = list(
-               ModuleSize = grDevices::colorRampPalette(c("white", "darkred"))(100)
-             ),
-             fontsize_row = 8,
-             fontsize_col = 8,
-             border_color = NA,
-             cellwidth = 18,
-             cellheight = 18,
-             filename = "06_Advanced_Results/Figures/4_Module_Module_Correlation.pdf",
-             width = 12,
-             height = 11)
+                       main = "Module-Module Eigengene Correlation",
+                       subtitle = "Similarity between co-expression modules (non-trait analysis)",
+                       color = color_palette,
+                       breaks = breaks_seq,
+                       display_numbers = TRUE,
+                       number_format = "%.2f",
+                       number_color = ifelse(abs(module_cor) > 0.7, "white", "black"),
+                       fontsize_number = 6,
+                       cluster_rows = TRUE,
+                       cluster_cols = TRUE,
+                       show_rownames = TRUE,
+                       show_colnames = TRUE,
+                       annotation_row = annotation_row,
+                       annotation_col = annotation_row,
+                       annotation_colors = list(
+                         ModuleSize = grDevices::colorRampPalette(c("white", "darkred"))(100)
+                       ),
+                       fontsize_row = 8,
+                       fontsize_col = 8,
+                       border_color = NA,
+                       cellwidth = 18,
+                       cellheight = 18,
+                       filename = "06_Advanced_Results/Figures/4_Module_Module_Correlation.pdf",
+                       width = 12,
+                       height = 11)
     
     # 创建PNG版本
     grDevices::png("06_Advanced_Results/Figures/4_Module_Module_Correlation.png",
-        width = 1100, height = 1000, res = 150)
+                   width = 1100, height = 1000, res = 150)
     
     pheatmap::pheatmap(module_cor,
-             main = "Module-Module Eigengene Correlation",
-             color = color_palette,
-             breaks = breaks_seq,
-             display_numbers = FALSE,
-             cluster_rows = TRUE,
-             cluster_cols = TRUE)
+                       main = "Module-Module Eigengene Correlation",
+                       color = color_palette,
+                       breaks = breaks_seq,
+                       display_numbers = FALSE,
+                       cluster_rows = TRUE,
+                       cluster_cols = TRUE)
     
     grDevices::dev.off()
     
@@ -1043,7 +1064,7 @@ generate_summary_report <- function() {
     "3. MAIN MODULES (sorted by size)",
     if (nrow(module_stats_no_grey) > 0) {
       paste("   ", apply(head(module_stats_no_grey, 10), 1, 
-                        function(x) paste(x[1], ": ", x[2], " genes", sep = "")), 
+                         function(x) paste(x[1], ": ", x[2], " genes", sep = "")), 
             collapse = "\n   ")
     } else {
       "   No non-grey modules detected"
@@ -1052,7 +1073,7 @@ generate_summary_report <- function() {
     "4. HUB GENE SUMMARY",
     if (nrow(hub_summary) > 0) {
       paste("   ", apply(hub_summary, 1, 
-                        function(x) paste(x[1], ": ", x[2], sep = "")), 
+                         function(x) paste(x[1], ": ", x[2], sep = "")), 
             collapse = "\n   ")
     } else {
       "   No hub gene analysis performed or available"
