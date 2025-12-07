@@ -1,9 +1,14 @@
 cff-version: 1.1.0
 message: "If you use this software, please cite it as below."
 authors:
-- family-names: Li
-  given-names: Jiaqing
-orcid: https://orcid.org/0000-0002-4856-5524
-title:Li-Chia-ching/WGCNA-pipeline-for-Alfalfa: v2.0.0: Advanced Analysis Pipeline & 16GB RAM Optimization
-version: v2.0.0
+- family-names: "Li"
+  given-names: "Jiaqing"
+  orcid: "https://orcid.org/0000-0002-4856-5524"
+- family-names: "Lei"
+  given-names: "Huanwei"
+  orcid: "https://orcid.org/0009-0007-4062-5987"
+title: "WGCNA-pipeline-for-Alfalfa: v2.0.0: Advanced Analysis Pipeline & 16GB RAM Optimization"
+version: 2.0.0
+doi: 10.5281/zenodo.17845619
 date-released: 2025-12-07
+url: "https://github.com/Li-Chia-ching/WGCNA-pipeline-for-Alfalfa/releases/tag/v2.0.0"
