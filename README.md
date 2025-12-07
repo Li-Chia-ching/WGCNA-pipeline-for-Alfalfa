@@ -1,5 +1,4 @@
-[![DOI](https://zenodo.org/badge/1109997346.svg)](https://doi.org/10.5281/zenodo.17831030)
-# WGCNA Analysis Pipeline (Comprehensive Guide)
+# WGCNA Analysis Pipeline 
 
 **Current Versions:**
 
