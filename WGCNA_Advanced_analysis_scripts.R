@@ -1,5 +1,5 @@
 # ==============================================================================
-# WGCNA ADVANCED ANALYSIS v2.7 (16GB RAM优化版)
+# WGCNA ADVANCED ANALYSIS v2.7.1 (16GB RAM优化版)
 # 功能：发表级可视化、富集分析、核心基因挖掘
 # 物种：Medicago sativa (紫花苜蓿/苜蓿)
 # 
@@ -9,6 +9,7 @@
 #   3. 添加了详细的外部富集分析指导
 #   4. 修复了所有括号匹配错误
 #   5. 针对16GB内存系统进行了全面优化
+#   6. 计算相关性矩阵 module_cor 之后，插入一段温和的提示逻辑让代码更健壮
 # ==============================================================================
 
 #### 1. 初始化和包加载 ####
@@ -1172,3 +1173,4 @@ cat("      Memory usage was optimized for 16GB RAM systems throughout.\n")
 sink("06_Advanced_Results/R_Session_Info.txt")
 sessionInfo()
 sink()
+
