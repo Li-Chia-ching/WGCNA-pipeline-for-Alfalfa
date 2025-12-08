@@ -1,5 +1,5 @@
 # ==============================================================================
-# Medicago sativa WGCNA 完整分析流程 v5.0
+# Medicago sativa WGCNA 完整分析流程 v5.1
 # 现代化配色方案 + 关键可视化增强 + 第三方分析支持
 # ==============================================================================
 
@@ -419,278 +419,104 @@ if (length(significant_modules) > 0) {
   cat("  ⚠️  未发现显著性关联 (p < 0.05)。\n")
 }
 
-#### 5. 核心基因分析（重点模块） ####
+#### 5. 核心基因分析（重点模块 - 自动化修正版） ####
 # ==============================================================================
-cat("\n[Step 5] Hub gene analysis for key modules...\n")
+cat("\n[Step 5] Hub gene analysis for Top Significant modules...\n")
 
-# 5.1 核心基因分析函数（增强版）
-analyze_hub_genes_enhanced <- function(target_module, n_top = 25, save_dir = "05_Hub_Genes") {
-  cat(sprintf("  Analyzing hub genes for module: %s\n", target_module))
+# 5.1 自动筛选 Top 3 显著关联模块
+# 基于之前计算的 moduleTraitPvalue 找出与任意性状 P值最小的模块
+min_p_per_module <- apply(moduleTraitPvalue, 1, min, na.rm = TRUE)
+sorted_modules <- names(sort(min_p_per_module))[1:min(3, length(min_p_per_module))]
+target_modules <- gsub("ME", "", sorted_modules) # 去掉ME前缀获取颜色名
+
+cat("  -> 自动识别的前3个显著模块:", paste(target_modules, collapse=", "), "\n")
+
+# 5.2 定义通用绘图函数
+analyze_and_plot_module <- function(target_module, n_top = 20, output_base = "05_Hub_Genes") {
   
-  # 提取模块基因
+  # 创建模块目录
+  mod_dir <- file.path(output_base, target_module)
+  if (!dir.exists(mod_dir)) dir.create(mod_dir, recursive = TRUE)
+  
+  cat(sprintf("  -> Processing module: %s\n", target_module))
+  
+  # A. 提取数据
   module_genes <- colnames(datExpr)[moduleColors == target_module]
+  if (length(module_genes) < 10) return(NULL)
   
-  if (length(module_genes) < 10) {
-    cat(sprintf("    Warning: Module %s has only %d genes, skipping\n", 
-                target_module, length(module_genes)))
-    return(NULL)
-  }
-  
-  # 计算kME
+  # 计算 kME
   me_name <- paste0("ME", target_module)
-  if (!me_name %in% colnames(MEs)) {
-    cat(sprintf("    Error: Module eigengene not found for %s\n", target_module))
-    return(NULL)
-  }
-  
   kME_values <- signedKME(datExpr[, module_genes], MEs[, me_name, drop = FALSE])
-  
-  kME_df <- data.frame(
-    Gene = module_genes,
-    kME = kME_values[, 1],
-    stringsAsFactors = FALSE
-  )
-  
+  kME_df <- data.frame(Gene = module_genes, kME = kME_values[, 1])
   kME_df <- kME_df[order(-abs(kME_df$kME)), ]
-  hub_genes <- head(kME_df, n_top)
   
-  return(list(
-    all_genes = kME_df,
-    hub_genes = hub_genes,
-    module_name = target_module
-  ))
-}
-
-# 5.2 分析magenta模块（重点模块）
-cat("  Processing magenta module...\n")
-magenta_results <- analyze_hub_genes_enhanced("magenta", n_top = 25, save_dir = "05_Hub_Genes/magenta")
-
-if (!is.null(magenta_results)) {
-  # 保存基因列表
-  write.csv(magenta_results$hub_genes, 
-            "05_Hub_Genes/magenta/Magenta_Hub_Genes.csv", 
-            row.names = FALSE)
-  write.csv(magenta_results$all_genes, 
-            "05_Hub_Genes/magenta/Magenta_All_Genes_with_kME.csv", 
-            row.names = FALSE)
+  # 保存全量列表
+  write.csv(kME_df, file.path(mod_dir, paste0(target_module, "_All_Genes_kME.csv")), row.names=FALSE)
   
-  # 5.2.1 Magenta核心基因表达热图（重点图2）
-  cat("    Creating magenta hub gene expression heatmap...\n")
+  # 取 Hub Genes
+  top_genes <- head(kME_df$Gene, n_top)
   
-  # 选择前20个核心基因
-  top_genes <- head(magenta_results$hub_genes$Gene, 20)
+  # B. 绘制热图 (修复标题显示问题)
   expr_data <- datExpr[, top_genes, drop = FALSE]
-  
-  # Z-score标准化
   expr_scaled <- t(scale(expr_data))
   
-  # 创建现代化热图
-  pdf("05_Hub_Genes/magenta/Magenta_Hub_Gene_Heatmap_Modern.pdf", 
-      width = 14, height = 10)
-  
-  # 创建样本注释（按处理条件）
-  annotation_col <- data.frame(
-    Stem_Color = ifelse(grepl("GS", trait_data$Group_Short_Name), "Green", "Red"),
-    Light_Condition = ifelse(grepl("LL", trait_data$Group_Short_Name), "Long", "Short"),
+  # 简化的列注释
+  anno_col <- data.frame(
+    Group = trait_data$Group_Short_Name, # 直接使用分组名，更直观
     row.names = rownames(datExpr)
   )
   
-  # 定义注释颜色
-  ann_colors <- list(
-    Stem_Color = c(Green = "#2ECC71", Red = "#E74C3C"),
-    Light_Condition = c(Long = "#3498DB", Short = "#F1C40F")
-  )
-  
-  # 使用pheatmap创建现代化热图
+  pdf(file.path(mod_dir, paste0(target_module, "_Heatmap.pdf")), width = 12, height = 8)
   pheatmap(expr_scaled,
-           main = "Magenta Module: Hub Gene Expression Patterns",
-           color = modern_colors$viridis_heatmap,
-           scale = "none",
+           # 使用更短的标题，并调整字体大小
+           main = paste0("Module ", target_module, ": Top ", n_top, " Hub Genes"),
+           fontsize = 10,       # 全局字体缩小
+           fontsize_row = 8,    # 行字体缩小
+           fontsize_col = 8,    # 列字体缩小
+           annotation_col = anno_col,
            cluster_rows = TRUE,
            cluster_cols = TRUE,
-           show_colnames = ncol(expr_scaled) <= 30,
-           show_rownames = TRUE,
-           fontsize_row = 9,
-           fontsize_col = 8,
-           fontsize = 11,
-           annotation_col = annotation_col,
-           annotation_colors = ann_colors,
+           show_colnames = TRUE,
            border_color = NA,
-           cellwidth = ifelse(ncol(expr_scaled) <= 30, 12, NA),
-           cellheight = 12)
-  
+           color = viridis(100))
   dev.off()
   
-  # 5.2.2 Magenta核心基因互作网络图（重点图3）
-  cat("    Creating magenta hub gene interaction network...\n")
+  # C. 绘制网络图 (修复标题显示问题)
+  # 计算相关性
+  cor_mat <- cor(expr_data, use = "p")
+  adj_mat <- abs(cor_mat)
+  adj_mat[adj_mat < 0.2] <- 0 # 简单阈值过滤
+  diag(adj_mat) <- 0
   
-  # 创建互作网络
-  create_gene_network <- function(gene_list, expr_data, module_color, output_dir) {
-    if (length(gene_list) < 5) return(NULL)
+  g <- graph_from_adjacency_matrix(adj_mat, mode = "undirected", weighted = TRUE)
+  if (vcount(g) > 0) {
+    # 简单的美化
+    V(g)$color <- target_module # 节点颜色 = 模块颜色
+    if(target_module %in% c("white", "yellow", "grey")) V(g)$color <- "#FFD700" # 浅色模块处理
     
-    # 计算相关性矩阵
-    cor_matrix <- cor(expr_data[, gene_list, drop = FALSE], use = "pairwise.complete.obs")
+    V(g)$size <- 15
+    V(g)$label.cex <- 0.7       # 缩小节点标签字体
+    E(g)$width <- E(g)$weight * 2
+    E(g)$color <- adjustcolor("grey50", alpha.f = 0.5)
     
-    # 转换为邻接矩阵（动态阈值）
-    threshold <- quantile(abs(cor_matrix[upper.tri(cor_matrix)]), 0.85, na.rm = TRUE)
-    adj_matrix <- abs(cor_matrix)
-    adj_matrix[adj_matrix < threshold] <- 0
-    diag(adj_matrix) <- 0
-    
-    # 创建igraph对象
-    g <- graph_from_adjacency_matrix(adj_matrix, 
-                                     mode = "undirected", 
-                                     weighted = TRUE,
-                                     diag = FALSE)
-    
-    # 移除孤立节点
-    g <- delete_vertices(g, degree(g) == 0)
-    
-    if (vcount(g) < 3) return(NULL)
-    
-    # 计算节点属性
-    node_degree <- degree(g)
-    betweenness_centrality <- betweenness(g)
-    
-    # 创建现代化网络图
-    pdf(sprintf("%s/%s_Hub_Gene_Network_Modern.pdf", output_dir, module_color),
-        width = 12, height = 10)
-    
-    # 设置布局
-    layout <- layout_with_fr(g)
-    
-    # 设置节点颜色（按度大小）
-    node_colors <- colorRampPalette(c("#ECF0F1", modern_colors$network_main))(100)
-    degree_scaled <- as.integer(cut(node_degree, breaks = 100))
-    
-    # 设置节点大小（按中心性）
-    node_size <- 10 + (betweenness_centrality / max(betweenness_centrality)) * 20
-    
-    # 设置边宽度和颜色
-    edge_width <- E(g)$weight * 3
-    edge_colors <- colorRampPalette(c("#BDC3C7", modern_colors$network_edge))(100)
-    edge_weight_scaled <- as.integer(cut(E(g)$weight, breaks = 100))
-    
-    # 绘制网络
-    plot(g,
-         layout = layout,
-         vertex.size = node_size,
-         vertex.color = node_colors[degree_scaled],
-         vertex.frame.color = "white",
-         vertex.label.cex = 0.8,
-         vertex.label.color = modern_colors$network_main,
-         vertex.label.family = "sans",
-         edge.width = edge_width,
-         edge.color = edge_colors[edge_weight_scaled],
-         edge.curved = 0.2,
-         main = sprintf("%s Module: Hub Gene Interaction Network", toupper(module_color)),
-         main.cex = 1.2)
-    
-    # 添加图例
-    legend("bottomright",
-           legend = c("High Connectivity", "Low Connectivity"),
-           fill = c(node_colors[100], node_colors[1]),
-           title = "Connectivity",
-           bty = "n",
-           cex = 0.8)
-    
-    legend("bottomleft",
-           legend = c("Strong Interaction", "Weak Interaction"),
-           col = c(edge_colors[100], edge_colors[1]),
-           lwd = 3,
-           title = "Edge Strength",
-           bty = "n",
-           cex = 0.8)
-    
+    pdf(file.path(mod_dir, paste0(target_module, "_Network.pdf")), width = 10, height = 10)
+    layout_fixed <- layout_with_fr(g)
+    plot(g, layout = layout_fixed,
+         # 缩小标题字体，防止显示为 ...
+         main = paste0(target_module, " Module Network"), 
+         cex.main = 1.0) 
     dev.off()
-    
-    # 保存网络数据
-    write.csv(as_data_frame(g, what = "edges"),
-              sprintf("%s/%s_Network_Edges.csv", output_dir, module_color),
-              row.names = FALSE)
-    
-    write.csv(data.frame(Gene = V(g)$name,
-                         Degree = node_degree,
-                         Betweenness = betweenness_centrality),
-              sprintf("%s/%s_Network_Node_Attributes.csv", output_dir, module_color),
-              row.names = FALSE)
-    
-    return(g)
   }
   
-  # 创建magenta网络图
-  magenta_network <- create_gene_network(
-    top_genes,
-    datExpr,
-    "magenta",
-    "05_Hub_Genes/magenta"
-  )
+  return(target_module)
 }
 
-# 5.3 分析darkgreen模块（重点模块）
-cat("  Processing darkgreen module...\n")
-darkgreen_results <- analyze_hub_genes_enhanced("darkgreen", n_top = 25, save_dir = "05_Hub_Genes/darkgreen")
-
-if (!is.null(darkgreen_results)) {
-  # 保存基因列表
-  write.csv(darkgreen_results$hub_genes, 
-            "05_Hub_Genes/darkgreen/Darkgreen_Hub_Genes.csv", 
-            row.names = FALSE)
-  write.csv(darkgreen_results$all_genes, 
-            "05_Hub_Genes/darkgreen/Darkgreen_All_Genes_with_kME.csv", 
-            row.names = FALSE)
-  
-  # 5.3.1 Darkgreen核心基因表达热图（重点图4）
-  cat("    Creating darkgreen hub gene expression heatmap...\n")
-  
-  top_genes <- head(darkgreen_results$hub_genes$Gene, 20)
-  expr_data <- datExpr[, top_genes, drop = FALSE]
-  expr_scaled <- t(scale(expr_data))
-  
-  pdf("05_Hub_Genes/darkgreen/Darkgreen_Hub_Gene_Heatmap_Modern.pdf", 
-      width = 14, height = 10)
-  
-  # 样本注释
-  annotation_col <- data.frame(
-    Stem_Color = ifelse(grepl("GS", trait_data$Group_Short_Name), "Green", "Red"),
-    Light_Condition = ifelse(grepl("LL", trait_data$Group_Short_Name), "Long", "Short"),
-    row.names = rownames(datExpr)
-  )
-  
-  ann_colors <- list(
-    Stem_Color = c(Green = "#2ECC71", Red = "#E74C3C"),
-    Light_Condition = c(Long = "#3498DB", Short = "#F1C40F")
-  )
-  
-  pheatmap(expr_scaled,
-           main = "Darkgreen Module: Hub Gene Expression Patterns",
-           color = modern_colors$plasma_heatmap,
-           scale = "none",
-           cluster_rows = TRUE,
-           cluster_cols = TRUE,
-           show_colnames = ncol(expr_scaled) <= 30,
-           show_rownames = TRUE,
-           fontsize_row = 9,
-           fontsize_col = 8,
-           fontsize = 11,
-           annotation_col = annotation_col,
-           annotation_colors = ann_colors,
-           border_color = NA,
-           cellwidth = ifelse(ncol(expr_scaled) <= 30, 12, NA),
-           cellheight = 12)
-  
-  dev.off()
-  
-  # 5.3.2 Darkgreen核心基因互作网络图（重点图5）
-  cat("    Creating darkgreen hub gene interaction network...\n")
-  
-  darkgreen_network <- create_gene_network(
-    top_genes,
-    datExpr,
-    "darkgreen",
-    "05_Hub_Genes/darkgreen"
-  )
+# 5.3 循环处理自动筛选出的模块
+for (mod in target_modules) {
+  analyze_and_plot_module(mod)
 }
+
+cat("  [Step 5 Finished] 请查看 05_Hub_Genes 文件夹下的结果。\n")
 
 #### 6. 富集分析准备（KEGG第三方分析） ####
 # ==============================================================================
