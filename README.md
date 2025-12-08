@@ -1,6 +1,6 @@
 # WGCNA Analysis Pipeline for *Medicago sativa*
 
-**Current Version:** v5.0 (Targeted/Custom) | v2.7.1 (Unbiased/Legacy)  
+**Current Version:** v5.1 (Targeted/Custom) | v2.7.1 (Unbiased/Legacy)  
 **Author:** Jiaqing Li  
 **Date:** December 8<sup>th</sup>, 2025
 
@@ -8,7 +8,7 @@
 
 This repository hosts a robust, publication-ready R pipeline for **Weighted Gene Co-expression Network Analysis (WGCNA)**. It is tailored for *Medicago sativa* (Alfalfa) and supports two distinct analytical strategies:
 
-1.  **Targeted Analysis (v5.0):** An end-to-end automated pipeline designed for **manually pre-selected gene sets** (e.g., \~5,000 specific genes). It features modern visualization, automatic phenotype association (Stem Color/Photoperiod), and external enrichment integration.
+1.  **Targeted Analysis (v5.1):** An end-to-end automated pipeline designed for **manually pre-selected gene sets** (e.g., \~5,000 specific genes). It features modern visualization, automatic phenotype association (Stem Color/Photoperiod), and external enrichment integration.
 2.  **Unbiased Discovery (v2.7.1):** A classic workflow for **raw transcriptome data**, featuring strict low-expression and low-variance filtering to discover novel modules from scratch. (Need  Basic Script WGCNA_pipeline.R v1.1.0 to perform Preliminary Analysis first.)
 
 ### Core Philosophy
@@ -21,7 +21,7 @@ This repository hosts a robust, publication-ready R pipeline for **Weighted Gene
 
 ## 🚀 Key Features
 
-### New in v5.0 (Modern Visualization & Automation)
+### New in v5.1 (Modern Visualization & Automation)
 
   * **Automatic Phenotype Mapping:** Automatically parses sample names (e.g., `LLGS`, `SLRS`) to create binary trait matrices for **Stem Color** (Red/Green) and **Photoperiod** (Long/Short).
   * **Next-Gen Visualization:**
@@ -60,9 +60,9 @@ if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocMana
 BiocManager::install(c("GO.db", "impute", "preprocessCore"))
 ```
 
-### 2\. ComplexHeatmap (Critical for v5.0)
+### 2\. ComplexHeatmap (Critical for v5.1)
 
-The v5.0 pipeline relies on **ComplexHeatmap** for advanced plotting. Please install it directly from GitHub to ensure compatibility:
+The v5.1 pipeline relies on **ComplexHeatmap** for advanced plotting. Please install it directly from GitHub to ensure compatibility:
 
 ```r
 library(devtools)
@@ -73,12 +73,12 @@ install_github("jokergoo/ComplexHeatmap")
 
 ## 📖 Workflow Usage Guide
 
-### Mode A: Targeted Analysis (v5.0)
+### Mode A: Targeted Analysis (v5.1)
 
 *Best for: Analyzing a specific subset of genes (e.g., manually filtered lists) with known phenotype groupings.*
 
 1.  **Input Data:** Load your data into RStudio as `Summary_of_manually_filtered_genes` (Expression) and `Transcriptome_grouping_summary` (Phenotype).
-2.  **Run Script:** Execute `WGCNA_v5.0_Modern.R`.
+2.  **Run Script:** Execute `WGCNA_v5.1_Modern.R`.
 3.  **Key Outputs:**
       * `04_Module_Trait_Correlations/`: The master heatmap showing relationships between modules and Red/Green or Long/Short traits.
       * `05_Hub_Genes/`: Detailed analysis of specific modules (e.g., Magenta, Darkgreen).
@@ -93,9 +93,9 @@ install_github("jokergoo/ComplexHeatmap")
 
 -----
 
-## 📂 Output Directory Structure (v5.0)
+## 📂 Output Directory Structure (v5.1)
 
-The v5.0 pipeline creates a comprehensive directory structure:
+The v5.1 pipeline creates a comprehensive directory structure:
 
 ```text
 Project_Root/
@@ -120,7 +120,7 @@ Project_Root/
 
 ## 📝 Version History
 
-### v5.0 - The Modernization Update (Current)
+### v5.1 - The Modernization Update (Current)
 
 *Release Date: December 2025*
 
