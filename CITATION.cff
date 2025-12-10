@@ -7,7 +7,7 @@ authors:
 - family-names: "Lei"
   given-names: "Huanwei"
   orcid: "https://orcid.org/0009-0007-4062-5987"
-title: "WGCNA Analysis Pipeline for Medicago sativa (v4.0.0)"
+title: "WGCNA Analysis Pipeline for Medicago sativa"
 version: 4.0.0
 doi: 10.5281/zenodo.17874546
 date-released: 2025-12-10
