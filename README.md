@@ -1,3 +1,4 @@
+[![DOI](https://zenodo.org/badge/1109997346.svg)](https://doi.org/10.5281/zenodo.17831030)
 # WGCNA Analysis Pipeline for *Medicago sativa*
 
 **Current Version:** v5.1 (Targeted/Custom) | v9.3-Visual-Pro (Unbiased/Automated)  
