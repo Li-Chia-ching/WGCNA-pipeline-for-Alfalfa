@@ -1,10 +1,10 @@
 # ==============================================================================
-# Medicago sativa WGCNA v9.3-Visual-Pro (可视化增强版)
+# Medicago sativa WGCNA v9.3.1-Visual-Pro (可视化增强版)
 # 硬件适配: 16GB RAM / 146k Genes (Filtered) / 54 Samples
 # 核心升级: 
 #   1. [Step 5] 模块-性状热图增加实体颜色注释条 (不再只有文字)
 #   2. [Step 6] 优化配色方案，提升图表美观度
-#   3. [全局] 保持 v9.2 的逻辑修复和性能优化
+#   3. [全局] 保持 v9.2 的逻辑修复和性能优化，在v9.3基础上修复了一些小问题
 # ==============================================================================
 
 #### 1. 环境与配置 ####
@@ -228,7 +228,23 @@ mod_names_long <- rownames(moduleTraitCor)  # "ME1", "ME2"等
 mod_numbers <- as.numeric(gsub("ME", "", mod_names_long))
 mod_real_colors <- labels2colors(mod_numbers)
 
-# 5.3 创建现代化热图（修复注释条问题）
+#### 5.3 创建现代化热图（修复 PDF 崩溃版） ####
+# ==============================================================================
+
+# --- [关键修复 1]：在打开 PDF 前，清洗模块颜色数据 ---
+# 防止 MEgrey 解析为 NA，导致 PDF 设备写入中断
+mod_names_long <- rownames(moduleTraitCor)
+mod_numbers <- suppressWarnings(as.numeric(gsub("ME", "", mod_names_long)))
+mod_real_colors <- labels2colors(mod_numbers)
+# 将 NA (原 MEgrey) 强制替换为灰色
+mod_real_colors[is.na(mod_real_colors) | mod_real_colors == "NA"] <- "grey"
+
+# 定义文字颜色：全部设为黑色（避免 ifelse 处理 NA 时报错）
+# 如果需要深色背景显示白色文字，可在此处修改逻辑，但必须保证没有 NA
+text_colors <- rep("black", length(mod_real_colors))
+
+# -----------------------------------------------------------
+
 pdf("04_Module_Trait_Correlations/Module_Trait_Heatmap.pdf", width = 14, height = 10)
 
 # 颜色映射函数
@@ -243,7 +259,8 @@ mod_sizes <- table(moduleColors)
 # 确保顺序与热图行一致
 mod_size_vec <- numeric(length(mod_numbers))
 for(i in 1:length(mod_numbers)) {
-  mod_color <- mod_real_colors[i]
+  # 使用清洗后的 mod_real_colors，不再有 NA 报错
+  mod_color <- mod_real_colors[i] 
   mod_size_vec[i] <- ifelse(mod_color %in% names(mod_sizes), 
                             mod_sizes[mod_color], 0)
 }
@@ -258,27 +275,22 @@ ha_row <- rowAnnotation(
   annotation_name_gp = gpar(fontsize = 10, fontface = "bold")
 )
 
-# B. 创建顶部注释：性状分组（如果需要）
-# 如果性状有分组信息，可以创建顶部注释
-# 这里假设每个性状是独立的，所以不添加顶部注释
-
 # ==========================================================================
 # 创建热图对象
 # ==========================================================================
 
 ht <- Heatmap(moduleTraitCor,
-              name = "Correlation\n(r)", # 图例名称更清晰
+              name = "Correlation\n(r)", 
               col = col_fun,
               
               # --- 矩阵样式 ---
               rect_gp = gpar(col = "white", lwd = 0.5),
               na_col = "grey90",
               
-              # --- 行设置：添加模块颜色标签 ---
+              # --- [关键修复 2] 行设置：使用清洗后的颜色变量 ---
               row_labels = paste0(mod_names_long, " (", mod_real_colors, ")"),
-              row_names_gp = gpar(fontsize = 11, 
-                                  col = ifelse(mod_real_colors == "white", 
-                                               "black", "black")),
+              # 直接使用安全的颜色向量，不再使用可能产生 NA 的 ifelse
+              row_names_gp = gpar(fontsize = 11, col = text_colors),
               
               # --- 行聚类设置 ---
               cluster_rows = TRUE,
@@ -300,7 +312,7 @@ ht <- Heatmap(moduleTraitCor,
               column_title_gp = gpar(fontsize = 16, fontface = "bold", col = "#2C3E50"),
               column_title_side = "top",
               
-              # --- 【关键】添加注释对象 ---
+              # --- 添加注释对象 ---
               right_annotation = ha_row,
               
               # --- 图例设置 ---
@@ -314,7 +326,7 @@ ht <- Heatmap(moduleTraitCor,
                 border = "black"
               ),
               
-              # --- 单元格内添加显著性星号（优化版本）---
+              # --- 单元格内添加显著性星号 ---
               cell_fun = function(j, i, x, y, width, height, fill) {
                 pval <- moduleTraitPvalue[i, j]
                 if(!is.na(pval) && pval < 0.05) {
@@ -326,7 +338,6 @@ ht <- Heatmap(moduleTraitCor,
                   brightness <- (bg_color[1]*0.299 + bg_color[2]*0.587 + bg_color[3]*0.114) / 255
                   star_col <- ifelse(brightness > 0.5, "black", "white")
                   
-                  # 将星号放在单元格上半部分
                   grid.text(star, x, y - height*0.25, 
                             gp = gpar(fontsize = 9, fontface = "bold", col = star_col))
                 }
@@ -343,7 +354,7 @@ ht <- Heatmap(moduleTraitCor,
 draw(ht, 
      heatmap_legend_side = "right", 
      annotation_legend_side = "right",
-     padding = unit(c(2, 2, 4, 2), "mm") # 上右下左边距
+     padding = unit(c(2, 2, 4, 2), "mm") 
 )
 
 dev.off()
@@ -465,6 +476,106 @@ for(mod in unique(moduleColors)) {
   write.table(genes, file.path("06_Enrichment_Materials", paste0("Genes_", mod, ".txt")),
               row.names=FALSE, col.names=FALSE, quote=FALSE)
 }
+
+#### 7.5 生成汇总报告 (New) ####
+# ==============================================================================
+cat("\n[Step 7.5] Generating Summary Report in 08_Summary_Reports...\n")
+
+summary_file <- "08_Summary_Reports/Analysis_Summary_Report.txt"
+sink(summary_file) # 开始将控制台输出重定向到文件
+
+# --- 1. 项目概况 ---
+cat("==============================================================================\n")
+cat("                       WGCNA ANALYSIS SUMMARY REPORT                          \n")
+cat("==============================================================================\n")
+cat(sprintf("Date Generated : %s\n", Sys.time()))
+cat(sprintf("R Version      : %s\n", R.version.string))
+cat("\n")
+
+# --- 2. 数据集信息 ---
+cat("------------------------------------------------------------------------------\n")
+cat("1. DATASET OVERVIEW\n")
+cat("------------------------------------------------------------------------------\n")
+cat(sprintf("Total Samples       : %d\n", nrow(datExpr)))
+cat(sprintf("Total Genes (Input) : %d\n", nrow(final_mapping))) # 基于完整映射表
+cat(sprintf("Genes After Filter  : %d\n", ncol(datExpr)))
+cat(sprintf("Sample Groups       : %s\n", paste(unique(meta_data$Group_Short_Name), collapse = ", ")))
+cat("\n")
+
+# --- 3. 网络构建参数 ---
+cat("------------------------------------------------------------------------------\n")
+cat("2. NETWORK CONSTRUCTION PARAMETERS\n")
+cat("------------------------------------------------------------------------------\n")
+sft_r2 <- sft$fitIndices[sft$fitIndices$Power == sft_power, "SFT.R.sq"]
+mean_k <- sft$fitIndices[sft$fitIndices$Power == sft_power, "mean.k."]
+cat(sprintf("Soft Power (beta)   : %d\n", sft_power))
+cat(sprintf("Scale Free Fit (R^2): %.4f\n", sft_r2))
+cat(sprintf("Mean Connectivity   : %.2f\n", mean_k))
+cat(sprintf("Network Type        : unsigned\n"))
+cat("\n")
+
+# --- 4. 模块统计 ---
+cat("------------------------------------------------------------------------------\n")
+cat("3. MODULE STATISTICS\n")
+cat("------------------------------------------------------------------------------\n")
+mod_counts <- table(moduleColors)
+n_mods <- length(mod_counts) - 1 # 排除 grey
+grey_genes <- mod_counts["grey"]
+if(is.na(grey_genes)) grey_genes <- 0
+total_genes <- ncol(datExpr)
+
+cat(sprintf("Total Modules Found : %d (excluding grey)\n", n_mods))
+cat(sprintf("Unassigned Genes    : %d (%.2f%%) [Grey Module]\n", grey_genes, (grey_genes/total_genes)*100))
+
+# 找出最大的模块（排除 grey）
+real_mods <- mod_counts[names(mod_counts) != "grey"]
+largest_mod <- names(real_mods)[which.max(real_mods)]
+largest_size <- max(real_mods)
+cat(sprintf("Largest Module      : %s (%d genes)\n", largest_mod, largest_size))
+cat("\nModule Size Distribution (Top 10):\n")
+print(head(sort(real_mods, decreasing = TRUE), 10))
+cat("\n")
+
+# --- 5. 关键关联结果 (Top 10 Correlations) ---
+cat("------------------------------------------------------------------------------\n")
+cat("4. KEY MODULE-TRAIT ASSOCIATIONS (Top Significant)\n")
+cat("------------------------------------------------------------------------------\n")
+cat("Listing top correlations with p-value < 0.01:\n\n")
+
+# 将矩阵展平并排序
+cor_df <- as.data.frame(as.table(moduleTraitCor))
+p_df <- as.data.frame(as.table(moduleTraitPvalue))
+names(cor_df) <- c("Module", "Trait", "Cor")
+cor_df$Pvalue <- p_df$Freq
+
+# 过滤并排序
+sig_cor <- cor_df[cor_df$Pvalue < 0.01, ]
+sig_cor <- sig_cor[order(abs(sig_cor$Cor), decreasing = TRUE), ]
+
+if(nrow(sig_cor) > 0) {
+  # 格式化输出
+  out_df <- head(sig_cor, 15)
+  out_df$Module <- gsub("ME", "", out_df$Module) # 去掉ME前缀
+  print(format(out_df, digits=3, scientific=TRUE), row.names=FALSE)
+} else {
+  cat("No significant correlations (p < 0.01) found.\n")
+}
+cat("\n")
+
+# --- 6. Hub 基因分析 ---
+cat("------------------------------------------------------------------------------\n")
+cat("5. HUB GENE ANALYSIS\n")
+cat("------------------------------------------------------------------------------\n")
+cat(sprintf("Hub genes were extracted for the following modules:\n"))
+cat(paste(target_list, collapse = ", "))
+cat("\n\n(See folder '05_Hub_Genes' for network plots and gene lists)\n")
+cat("\n")
+
+# --- 结束 ---
+cat("==============================================================================\n")
+cat("REPORT END\n")
+sink() # 停止重定向，恢复控制台输出
+cat(sprintf("  -> Summary report created: %s\n", summary_file))
 
 #### 8. 输出完整性验证 ####
 # ==============================================================================
